@@ -1,0 +1,10 @@
+{
+    "date-format": "%d %B %Y",
+    "keywords": {
+        "project-title": "Master's thesis: Hardware/software co-design for the new QUIC network protocol",
+        "project-description": "Characterization tests",
+        "organization": "UHasselt/KULeuven - FIIW",
+        "author": "Lowie Deferme"
+    },
+    "shebang-by-default": true
+}
