@@ -8,7 +8,9 @@
 // On: 04 July 2022
 // ------------------------------------------------------------------------------
 
-#include "picoquic_1rtt_dec.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 int main(int argc, char **argv)
 {

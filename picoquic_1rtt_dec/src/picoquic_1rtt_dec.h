@@ -11,8 +11,4 @@
 #ifndef PICOQUIC_DEC
 #define PICOQUIC_DEC
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #endif

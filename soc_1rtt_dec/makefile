@@ -9,7 +9,7 @@
 # ------------------------------------------------------------------------------
 
 # Define final executable
-BINARY = picoquic_1rtt_dec.bin
+BINARY = soc_1rtt_dec.bin
 
 # Define build, target and source dir
 BUILD_DIR := ./build
@@ -29,7 +29,9 @@ SOURCES := $(wildcard $(SOURCE_DIR)/*.c)
 OBJECTS = $(patsubst $(SOURCE_DIR)/%.c, $(BUILD_DIR)/%.o, $(SOURCES))
 
 .PHONY: all
-all: $(info [BUILD]) $(BINARY) clean
+all: bin clean run
+
+bin: $(info [BUILD]) $(BINARY)
 
 $(OBJECTS) : $(SOURCES) | $(BUILD_DIR)
 	$(CC) -c $(CFLAGS) $< -o $@

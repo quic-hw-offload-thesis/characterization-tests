@@ -29,7 +29,9 @@ SOURCES := $(wildcard $(SOURCE_DIR)/*.c)
 OBJECTS = $(patsubst $(SOURCE_DIR)/%.c, $(BUILD_DIR)/%.o, $(SOURCES))
 
 .PHONY: all
-all: $(info [BUILD]) $(BINARY) clean run
+all: bin clean run
+
+bin: $(info [BUILD]) $(BINARY)
 
 $(OBJECTS) : $(SOURCES) | $(BUILD_DIR)
 	$(CC) -c $(CFLAGS) $< -o $@
