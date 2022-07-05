@@ -6,10 +6,12 @@ root = true
 end_of_line = lf
 insert_final_newline = true
 
-# Space based indentation everywhere
+# Space based indentation everywhere except for makefiles
 [*]
 indent_style = space
 indent_size = 4
+[makefile]
+indent_style = tab
 
 # Use utf-8 everywhere
 [*]

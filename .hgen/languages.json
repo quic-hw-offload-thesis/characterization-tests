@@ -8,6 +8,13 @@
             }
         },
         {
+            "language": "makefile",
+            "line-comment": "#",
+            "file-extension": {
+                "source": ""
+            }
+        },
+        {
             "language": "c",
             "line-comment": "//",
             "file-extension": {
