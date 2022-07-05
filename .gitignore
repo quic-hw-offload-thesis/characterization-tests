@@ -4,7 +4,10 @@
 
 # Project folder configuration
 .vscode/*
+# Except
 !.vscode/*.code-snippets
+!.vscode/settings.json
+!.vscode/extensions.json
 
 # Local History for Visual Studio Code
 .history/

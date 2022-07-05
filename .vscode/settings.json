@@ -1,0 +1,80 @@
+{
+    "editor.formatOnSave": true,
+    "todo-tree.regex.regex": "(//|#|<!--|--|;|/\\*|^|^[ \\t]*(-|\\d+.))\\s*($TAGS)",
+    "todo-tree.general.tags": [
+        "BUG",
+        "Bug",
+        "FIXME",
+        "Fixme",
+        "TODO",
+        "Todo",
+        "SOURCE",
+        "Source",
+        "DOCS",
+        "Docs",
+        "NOTE",
+        "Note",
+        "[ ]",
+        "[x]"
+    ],
+    "todo-tree.general.tagGroups": {
+        "BUG": [
+            "BUG",
+            "Bug"
+        ],
+        "FIXME": [
+            "FIXME",
+            "Fixme"
+        ],
+        "TODO": [
+            "TODO",
+            "Todo"
+        ],
+        "SOURCE": [
+            "SOURCE",
+            "Source",
+            "DOCS",
+            "Docs"
+        ],
+        "NOTE": [
+            "NOTE",
+            "Note"
+        ]
+    },
+    "todo-tree.highlights.customHighlight": {
+        "BUG": {
+            "icon": "bug",
+            "background": "#BF616A",
+            "foreground": "#4C566A",
+            "iconColour": "#BF616A",
+            "type": "text",
+            "gutterIcon": true
+        },
+        "FIXME": {
+            "icon": "stop",
+            "background": "#D08770",
+            "foreground": "#4C566A",
+            "iconColour": "#D08770",
+            "type": "text",
+            "gutterIcon": true
+        },
+        "TODO": {
+            "icon": "alert",
+            "background": "#EBCB8B",
+            "foreground": "#4C566A",
+            "iconColour": "#EBCB8B"
+        },
+        "SOURCE": {
+            "icon": "$(references)",
+            "background": "#A3BE8C",
+            "foreground": "#4C566A",
+            "iconColour": "terminal.ansiBrightGreen"
+        },
+        "NOTE": {
+            "icon": "info",
+            "background": "#81A1C1",
+            "foreground": "#4C566A",
+            "iconColour": "#81A1C1"
+        }
+    }
+}

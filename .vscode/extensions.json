@@ -1,0 +1,8 @@
+{
+    "recommendations": [
+        "ms-vscode.cpptools",
+        "cschlosser.doxdocgen",
+        "EditorConfig.EditorConfig",
+        "Gruntfuggly.todo-tree"
+    ]
+}
