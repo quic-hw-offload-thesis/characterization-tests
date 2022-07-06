@@ -9,7 +9,7 @@
 # ------------------------------------------------------------------------------
 
 # Define final executable
-BINARY = soc_1rtt_dec.bin
+BINARY = soc_1rtt_dec
 
 # Define build, target and source dir
 BUILD_DIR := ./build

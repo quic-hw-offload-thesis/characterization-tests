@@ -82,6 +82,7 @@
         "*.v": "verilog",
         "*.vh": "verilog",
         "LICENCE": "plaintext",
-        "picoquic.h": "c"
+        "picoquic.h": "c",
+        "picosocks.h": "c"
     }
 }

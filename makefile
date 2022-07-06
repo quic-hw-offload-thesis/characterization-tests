@@ -12,7 +12,7 @@
 TEST_DIRS := ./picoquic_1rtt_dec ./soc_1rtt_dec
 
 TARGET_DIR := ./target
-BINARIES := $(wildcard $(TARGET_DIR)/*.bin)
+BINARIES := $(wildcard $(TARGET_DIR)/*)
 
 .PONY: all
 
