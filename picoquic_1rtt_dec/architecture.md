@@ -20,6 +20,6 @@
         - `picoquic_parse_short_packet_header`
     - `picoquic_remove_header_protection` @ [packet.c:445](https://github.com/private-octopus/picoquic/tree/28b313c1ee483bfae784d33593d1e56a32701cc4/picoquic/packet.c#L445)
     - `picoquic_remove_packet_protection` @ [packet.c:543](https://github.com/private-octopus/picoquic/tree/28b313c1ee483bfae784d33593d1e56a32701cc4/picoquic/packet.c#L543)
-        - `picoquic_aead_decrypt_generic` @ [tls_api.c:2477]https://github.com/private-octopus/picoquic/tree/28b313c1ee483bfae784d33593d1e56a32701cc4/picoquic/tls_api.c#L2477): Calls `ptls_aead_decrypt`
+        - `picoquic_aead_decrypt_generic` @ [tls_api.c:2477](https://github.com/private-octopus/picoquic/tree/28b313c1ee483bfae784d33593d1e56a32701cc4/picoquic/tls_api.c#L2477): Calls `ptls_aead_decrypt`
 1. `picoquic_incoming_1rtt` @ [packet.c:1956](https://github.com/private-octopus/picoquic/tree/28b313c1ee483bfae784d33593d1e56a32701cc4/picoquic/packet.c#L1956): Parse frames?
     - `picoquic_decode_frames` @ [frames.c:4968](https://github.com/private-octopus/picoquic/tree/28b313c1ee483bfae784d33593d1e56a32701cc4/picoquic/frames.c#L4968)
