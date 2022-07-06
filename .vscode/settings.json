@@ -76,5 +76,12 @@
             "foreground": "#4C566A",
             "iconColour": "#81A1C1"
         }
+    },
+    "files.associations": {
+        "*.vht": "vhdl",
+        "*.v": "verilog",
+        "*.vh": "verilog",
+        "LICENCE": "plaintext",
+        "picoquic.h": "c"
     }
 }
