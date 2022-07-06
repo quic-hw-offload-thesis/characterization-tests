@@ -16,10 +16,14 @@ BUILD_DIR := ./build
 TARGET_DIR := ../target
 SOURCE_DIR := ./src
 
+# Link dependencies
+# Source: https://github.com/private-octopus/picoquic/blob/28b313c1ee483bfae784d33593d1e56a32701cc4/sample/README.md
+LINK_DEP := ../libs/picoquic/libpicoquic-core.a ../libs/picotls/libpicotls-core.a ../libs/picotls/libpicotls-minicrypto.a ../libs/picotls/libpicotls-openssl.a
+
 # Define compiler and options
 CC := gcc
 CFLAGS := -g
-# LDFLAGS := 
+LDFLAGS := -lssl -lcrypto -lpthread
 
 # Define utilities
 RM = rm -rf
@@ -37,7 +41,7 @@ $(OBJECTS) : $(SOURCES) | $(BUILD_DIR)
 	$(CC) -c $(CFLAGS) $< -o $@
 
 $(BINARY) : $(OBJECTS) | $(TARGET_DIR)
-	$(CC) $< -o $(TARGET_DIR)/$@
+	$(CC) $< $(LINK_DEP) $(LDFLAGS) -o $(TARGET_DIR)/$@
 
 $(BUILD_DIR):
 	$(MKDIR) $(BUILD_DIR)
