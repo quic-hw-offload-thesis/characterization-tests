@@ -19,6 +19,8 @@
 #include "../../libs/picoquic/picoquic/picoquic_internal.h"
 #include "../../libs/picoquic/picoquic/picoquic_utils.h"
 
+#include "picoquic_1rtt_dec.h"
+
 /**
  * "quic-spin-bit" : "0b1",
  * "quic-reserved" : "0b0",
@@ -80,23 +82,24 @@ int main(int argc, char **argv)
         // Todo: Add connections to context
 
         // Create socket address for this connection
+        // Source: Beej’s Guide to Network Programming
         struct sockaddr_in sa; // IPv4
         memset(&sa, 0, sizeof sa);
         sa.sin_family = AF_INET;
         inet_pton(AF_INET, "10.25.135.108", &(sa.sin_addr));
         sa.sin_port = 4434;
-        picoquic_connection_id_t dcid = *((picoquic_connection_id_t *)(malloc(sizeof(picoquic_connection_id_t))));
 
         // Create dcid
         printf("\n[DEBUG] Generate DCID:\n");
         printf("------- --------------\n");
         uint8_t dcid_id[] = "\xf3\xde\xc1\xbb\x98\xd9\x2f\x74\x02\xe8\x98\xce\xc8\x79\x54\x2c\xbd\x28\x23\x4c"; // Fixme: Use fixed dcid for debug, should be read from dcid file in final test
-        dcid.id_len = sizeof dcid_id - 1;                                                                       // Subtract string terminator
-        printf("[DEBUG] DCID len: %d\n", dcid.id_len);
+        picoquic_connection_id_t dcid = *((picoquic_connection_id_t *)(malloc(sizeof(picoquic_connection_id_t))));
+        dcid.id_len = sizeof dcid_id - 1; // Subtract string terminator
         for (int i = 0; i < dcid.id_len; i++)
         {
             dcid.id[i] = dcid_id[i];
         }
+        printf("[DEBUG] DCID len: %d\n", dcid.id_len);
         printf("[DEBUG] DCID: ");
         print_byte_array(dcid.id, dcid.id_len);
 
@@ -113,6 +116,10 @@ int main(int argc, char **argv)
             1                            // char client_mode
         );
 
+        // Fixme: Proof that connection is added to context is only for debug
+        printf("[DEBUG] CID of first conn in quic context: ");
+        print_byte_array(quic->cnx_list[0].initial_cnxid.id, quic->cnx_list[0].initial_cnxid.id_len);
+
         // Create parameters for `picoquic_parse_header_and_decrypt`
         decrypted_data = picoquic_stream_data_node_alloc(quic);
         if (decrypted_data != NULL)
@@ -121,6 +128,7 @@ int main(int argc, char **argv)
             int packet_length = length; // Parse one packet at a time
             // Source: https://github.com/private-octopus/picoquic/blob/28b313c1ee483bfae784d33593d1e56a32701cc4/picoquic/packet.c#L2135
             picoquic_packet_header ph;
+            picoquic_cnx_t *cnx = NULL;
             int new_context_created = 0;
             size_t consumed = 0;                             // Source: https://github.com/private-octopus/picoquic/blob/28b313c1ee483bfae784d33593d1e56a32701cc4/picoquic/packet.c#L2505
             uint64_t current_time = picoquic_current_time(); // Current time is calculated as last before function call
@@ -141,12 +149,27 @@ int main(int argc, char **argv)
                 current_time,        // current_time: Current time
                 decrypted_data,      // decrypted_data: picoquic_stream_data_node_t to fill
                 &ph,                 // ph: picoquic_packet_header to fill
-                &connection,         // pcnx:
+                &cnx,                // pcnx:
                 &consumed,           // consumed: Amount of consumed bytes?
                 &new_context_created // new_context_created: 0 if there isn't a new context created?
             );
             bytes_out = decrypted_data->data; // Fixme: Set pointer for debug, should append for final test
 
+            // Print statements for debug
+            printf("[DEBUG] Packet header: (out)\n");
+            char *ptype = NULL;
+            ptype_to_string(ph.ptype, &ptype);
+            printf("\t  Type: %s\n", ptype);
+            printf("\t  DCID: ");
+            print_byte_array(ph.dest_cnx_id.id, ph.dest_cnx_id.id_len);
+            printf("\t  SCID: ");
+            print_byte_array(ph.srce_cnx_id.id, ph.srce_cnx_id.id_len);
+            printf("\t  Key phase: %d\n", ph.key_phase);
+            printf("\t  Spin bit: %d\n", ph.spin);
+            printf("\t  Packet number: %d\n", ph.pn);
+            printf("\t  Packet number offset: %d\n", ph.pn_offset);
+            printf("\t  Payload offset: %d\n", ph.offset);
+            printf("\t  Payload length: %d\n", ph.payload_length);
             printf("[DEBUG] Consumed: %d (out)\n", consumed);
             printf("[DEBUG] New context created: %s (out)\n", new_context_created ? "True" : "False");
             printf("[DEBUG] Bytes out: ");
@@ -193,4 +216,46 @@ int print_byte_array(uint8_t *array, int array_len)
     }
     printf("\n");
     return 0;
+}
+
+/**
+ * @brief Convert ptype to string presentation
+ *
+ * @param ptype ptype to convert
+ * @param str output string representation
+ * @return int Zero if success
+ */
+int ptype_to_string(picoquic_packet_type_enum ptype, char **str)
+{
+    switch (ptype)
+    {
+    case picoquic_packet_error:
+        *str = "error";
+        break;
+    case picoquic_packet_version_negotiation:
+        *str = "version_negotiation";
+        break;
+    case picoquic_packet_initial:
+        *str = "initial";
+        break;
+    case picoquic_packet_retry:
+        *str = "retry";
+        break;
+    case picoquic_packet_handshake:
+        *str = "handshake";
+        break;
+    case picoquic_packet_0rtt_protected:
+        *str = "0rtt_protected";
+        break;
+    case picoquic_packet_1rtt_protected:
+        *str = "1rtt_protected";
+        break;
+    case picoquic_packet_type_max:
+        *str = "type_max";
+        break;
+
+    default:
+        *str = "unknown";
+        break;
+    }
 }
