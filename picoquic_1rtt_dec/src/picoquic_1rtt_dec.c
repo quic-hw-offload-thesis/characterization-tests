@@ -140,7 +140,7 @@ int main(int argc, char **argv)
             print_byte_array(bytes_in, buffer_size);
             printf("[DEBUG] Length: %d (in)\n", length);
             printf("[DEBUG] Packet length: %d (in)\n", packet_length);
-            picoquic_parse_header_and_decrypt(
+            int result = picoquic_parse_header_and_decrypt(
                 quic,                // quic: Picoquic context
                 bytes_in,            // bytes: Input bytes
                 length,              // length: Length of input bytes
@@ -154,6 +154,7 @@ int main(int argc, char **argv)
                 &new_context_created // new_context_created: 0 if there isn't a new context created?
             );
             bytes_out = decrypted_data->data; // Fixme: Set pointer for debug, should append for final test
+            printf("[DEBUG] Result: %d (returned)\n", result);
 
             // Print statements for debug
             printf("[DEBUG] Packet header: (out)\n");
@@ -170,6 +171,15 @@ int main(int argc, char **argv)
             printf("\t  Packet number offset: %d\n", ph.pn_offset);
             printf("\t  Payload offset: %d\n", ph.offset);
             printf("\t  Payload length: %d\n", ph.payload_length);
+
+            printf("[DEBUG] Connection: (out)\n"); // Fixme: Accessing properties of struct cnx causes segfault
+            printf("\t  Spin bit (enc): %d\n", cnx->key_phase_enc);
+            printf("\t  Spin bit (dec): %d\n", cnx->key_phase_dec);
+            printf("\t  Original CID: ");
+            print_byte_array(cnx->original_cnxid.id, cnx->original_cnxid.id_len);
+            printf("\t  Initial CID: ");
+            print_byte_array(cnx->initial_cnxid.id, cnx->initial_cnxid.id_len);
+
             printf("[DEBUG] Consumed: %d (out)\n", consumed);
             printf("[DEBUG] New context created: %s (out)\n", new_context_created ? "True" : "False");
             printf("[DEBUG] Bytes out: ");
