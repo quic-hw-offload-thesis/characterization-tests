@@ -18,7 +18,7 @@ SOURCE_DIR := ./src
 
 # Link dependencies
 # Source: https://github.com/private-octopus/picoquic/blob/28b313c1ee483bfae784d33593d1e56a32701cc4/sample/README.md
-LINK_DEP := ../libs/picoquic/libpicoquic-core.a ../libs/picotls/libpicotls-core.a ../libs/picotls/libpicotls-minicrypto.a ../libs/picotls/libpicotls-openssl.a
+LINK_DEP := ../libs/picoquic/libpicoquic-core.a ../libs/picotls/libpicotls-core.a ../libs/picotls/libpicotls-minicrypto.a ../libs/picotls/libpicotls-openssl.a ../libs/picotls/libpicotls-fusion.a
 
 # Define compiler and options
 CC := gcc
@@ -35,12 +35,14 @@ OBJECTS = $(patsubst $(SOURCE_DIR)/%.c, $(BUILD_DIR)/%.o, $(SOURCES))
 .PHONY: all
 all: bin clean run
 
-bin: $(info [BUILD]) $(BINARY)
+bin: $(BINARY)
 
 $(OBJECTS) : $(SOURCES) | $(BUILD_DIR)
+	$(info [BUILD])
 	$(CC) -c $(CFLAGS) $< -o $@
 
 $(BINARY) : $(OBJECTS) | $(TARGET_DIR)
+	$(info [LINK])
 	$(CC) $< $(LINK_DEP) $(LDFLAGS) -o $(TARGET_DIR)/$@
 
 $(BUILD_DIR):

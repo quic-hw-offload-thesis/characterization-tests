@@ -18,6 +18,7 @@
 #include "../../libs/picoquic/picoquic/picoquic.h"
 #include "../../libs/picoquic/picoquic/picoquic_internal.h"
 #include "../../libs/picoquic/picoquic/picoquic_utils.h"
+#include "../../libs/picoquic/picoquic/tls_api.h"
 
 #include "picoquic_1rtt_dec.h"
 
@@ -46,9 +47,7 @@ int main(int argc, char **argv)
     int exit_code = 0;
 
     // Set object's pointer to nullpointer initially
-    picoquic_quic_t *quic = NULL;
     picoquic_stream_data_node_t *decrypted_data = NULL;
-    picoquic_cnx_t *connection = NULL;
 
     // Allocate memory for input buffer
     bytes_in = malloc(buffer_size);
@@ -57,29 +56,37 @@ int main(int argc, char **argv)
     // Read data input file to buffer
     memcpy(bytes_in, &msg, sizeof msg); // Fixme: Set fixed msg to input buffer for debug, should be read from file for final test
 
-    // Create picoquic context
-    uint64_t current_time = picoquic_current_time();
-    quic = picoquic_create( // Source: https://github.com/private-octopus/picoquic/blob/28b313c1ee483bfae784d33593d1e56a32701cc4/picoquictest/parseheadertest.c#L568
-        8,                  // uint32_t max_nb_connections
-        NULL,               // char const* cert_file_name,
-        NULL,               // char const* key_file_name,
-        NULL,               // char const * cert_root_file_name
-        NULL,               // char const* default_alpn
-        NULL,               // picoquic_stream_data_cb_fn default_callback_fn
-        NULL,               // void* default_callback_ctx
-        NULL,               // picoquic_connection_id_cb_fn cnx_id_callback
-        NULL,               // void* cnx_id_callback_data
-        NULL,               // uint8_t reset_seed[PICOQUIC_RESET_SECRET_SIZE]
-        current_time,       // uint64_t current_time
-        NULL,               // uint64_t* p_simulated_time
-        NULL,               // char const* ticket_file_name
-        NULL,               // const uint8_t* ticket_encryption_key
-        0                   // size_t ticket_encryption_key_length
+    /*****************************************************
+     *              Create picoquic context              *
+     *****************************************************/
+    picoquic_quic_t *quic = picoquic_create( // Source: https://github.com/private-octopus/picoquic/blob/28b313c1ee483bfae784d33593d1e56a32701cc4/picoquictest/parseheadertest.c#L568
+        8,                                   // uint32_t max_nb_connections
+        NULL,                                // char const* cert_file_name,
+        NULL,                                // char const* key_file_name,
+        NULL,                                // char const * cert_root_file_name
+        NULL,                                // char const* default_alpn
+        NULL,                                // picoquic_stream_data_cb_fn default_callback_fn
+        NULL,                                // void* default_callback_ctx
+        NULL,                                // picoquic_connection_id_cb_fn cnx_id_callback
+        NULL,                                // void* cnx_id_callback_data
+        NULL,                                // uint8_t reset_seed[PICOQUIC_RESET_SECRET_SIZE]
+        picoquic_current_time(),             // uint64_t current_time
+        NULL,                                // uint64_t* p_simulated_time
+        NULL,                                // char const* ticket_file_name
+        NULL,                                // const uint8_t* ticket_encryption_key
+        0                                    // size_t ticket_encryption_key_length
     );
 
     if (quic != NULL)
     {
-        // Todo: Add connections to context
+        // Set context's settings
+        quic->local_cnxid_length = 20;
+
+        /*****************************************************
+         *            Create picoquic connection             *
+         *****************************************************/
+        printf("\n[DEBUG] Create picoquic connection:\n");
+        printf("------- ---------------------------\n");
 
         // Create socket address for this connection
         // Source: Beej’s Guide to Network Programming
@@ -89,36 +96,51 @@ int main(int argc, char **argv)
         inet_pton(AF_INET, "10.25.135.108", &(sa.sin_addr));
         sa.sin_port = 4434;
 
-        // Create dcid
-        printf("\n[DEBUG] Generate DCID:\n");
-        printf("------- --------------\n");
-        uint8_t dcid_id[] = "\xf3\xde\xc1\xbb\x98\xd9\x2f\x74\x02\xe8\x98\xce\xc8\x79\x54\x2c\xbd\x28\x23\x4c"; // Fixme: Use fixed dcid for debug, should be read from dcid file in final test
-        picoquic_connection_id_t dcid = *((picoquic_connection_id_t *)(malloc(sizeof(picoquic_connection_id_t))));
-        dcid.id_len = sizeof dcid_id - 1; // Subtract string terminator
-        for (int i = 0; i < dcid.id_len; i++)
-        {
-            dcid.id[i] = dcid_id[i];
-        }
-        printf("[DEBUG] DCID len: %d\n", dcid.id_len);
-        printf("[DEBUG] DCID: ");
-        print_byte_array(dcid.id, dcid.id_len);
-
         // Create connection
-        connection = picoquic_create_cnx(
+        picoquic_cnx_t *connection = picoquic_create_cnx(
             quic,                        // picoquic_quic_t* quic
-            dcid,                        // picoquic_connection_id_t initial_cnx_id: Is this the DCID?
-            picoquic_null_connection_id, // picoquic_connection_id_t remote_cnx_id: Is this the SCID?
+            picoquic_null_connection_id, // picoquic_connection_id_t initial_cnx_id
+            picoquic_null_connection_id, // picoquic_connection_id_t remote_cnx_id
             (struct sockaddr *)&sa,      // const struct sockaddr* addr_to
             0,                           // uint64_t start_time
             0,                           // uint32_t preferred_version
             NULL,                        // char const* sni
             NULL,                        // char const* alpn
-            1                            // char client_mode
+            0                            // char client_mode
         );
 
+        // Create dcid and add to connection
+        uint8_t dcid_id[] = "\xf3\xde\xc1\xbb\x98\xd9\x2f\x74\x02\xe8\x98\xce\xc8\x79\x54\x2c\xbd\x28\x23\x4c"; // Fixme: Use fixed dcid for debug, should be read from dcid file in final test
+        picoquic_connection_id_t dcid = *((picoquic_connection_id_t *)(malloc(sizeof(picoquic_connection_id_t))));
+        dcid.id_len = sizeof dcid_id - 1; // Subtract string terminator
+        for (int i = 0; i < dcid.id_len; i++)
+        {
+            dcid.id[i] = dcid_id[i]; // Copy values since pointer ref may cause problems later
+        }
+        connection->path[0]->p_local_cnxid = picoquic_create_local_cnxid(connection, &dcid, 0);
+
+        // Create and fill connection's crypto context
+        // Source: https://github.com/private-octopus/picoquic/blob/28b313c1ee483bfae784d33593d1e56a32701cc4/picoquictest/parseheadertest.c#L842
+        char *prefix_label = picoquic_supported_versions[connection->version_index].tls_prefix_label;
+        static const uint8_t secret[] = {
+            0, 1,
+            0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+            0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+            0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+        void *aead_context = picoquic_setup_test_aead_context(0, secret, prefix_label);
+        void *pn_context = picoquic_pn_enc_create_for_test(secret, prefix_label);
+        connection->crypto_context[3].aead_decrypt = aead_context;
+        connection->crypto_context[3].pn_dec = pn_context;
+        printf("[DEBUG] Crypto context setup: \n");
+        printf("\t  Version index: %d\n", connection->version_index);
+        printf("\t  Prefix label: %d\n", *prefix_label);
+
         // Fixme: Proof that connection is added to context is only for debug
-        printf("[DEBUG] CID of first conn in quic context: ");
-        print_byte_array(quic->cnx_list[0].initial_cnxid.id, quic->cnx_list[0].initial_cnxid.id_len);
+        printf("[DEBUG] First path of first conn in quic context: \n");
+        printf(" \t  Local CID: ");
+        print_byte_array(quic->cnx_list[0].path[0]->p_local_cnxid->cnx_id.id, quic->cnx_list[0].path[0]->p_local_cnxid->cnx_id.id_len);
+        printf("\t  Remote CID: ");
+        print_byte_array(quic->cnx_list[0].path[0]->p_remote_cnxid->cnx_id.id, quic->cnx_list[0].path[0]->p_remote_cnxid->cnx_id.id_len);
 
         // Create parameters for `picoquic_parse_header_and_decrypt`
         decrypted_data = picoquic_stream_data_node_alloc(quic);
@@ -137,10 +159,11 @@ int main(int argc, char **argv)
             printf("\n[INFO] Calling picoquic_parse_header_and_decrypt:\n");
             printf("------ ------------------------------------------\n");
             printf("[DEBUG] Bytes in: ");
-            print_byte_array(bytes_in, buffer_size);
+            // print_byte_array(bytes_in, buffer_size);
+            print_byte_array(bytes_in, sizeof msg);
             printf("[DEBUG] Length: %d (in)\n", length);
             printf("[DEBUG] Packet length: %d (in)\n", packet_length);
-            picoquic_parse_header_and_decrypt(
+            int result = picoquic_parse_header_and_decrypt(
                 quic,                // quic: Picoquic context
                 bytes_in,            // bytes: Input bytes
                 length,              // length: Length of input bytes
@@ -154,6 +177,7 @@ int main(int argc, char **argv)
                 &new_context_created // new_context_created: 0 if there isn't a new context created?
             );
             bytes_out = decrypted_data->data; // Fixme: Set pointer for debug, should append for final test
+            printf("[DEBUG] Result: %d (returned)\n", result);
 
             // Print statements for debug
             printf("[DEBUG] Packet header: (out)\n");
@@ -170,10 +194,25 @@ int main(int argc, char **argv)
             printf("\t  Packet number offset: %d\n", ph.pn_offset);
             printf("\t  Payload offset: %d\n", ph.offset);
             printf("\t  Payload length: %d\n", ph.payload_length);
+
+            if (cnx != NULL)
+            {
+                printf("[DEBUG] Connection: (out)\n");
+                printf("\t  Spin bit (enc): %d\n", cnx->key_phase_enc);
+                printf("\t  Spin bit (dec): %d\n", cnx->key_phase_dec);
+                printf("\t  Local CID: ");
+                print_byte_array(cnx->path[0]->p_local_cnxid->cnx_id.id, cnx->path[0]->p_local_cnxid->cnx_id.id_len);
+            }
+            else
+            {
+                printf("[ERROR] Connection: NULL (out)\n");
+            }
+
             printf("[DEBUG] Consumed: %d (out)\n", consumed);
             printf("[DEBUG] New context created: %s (out)\n", new_context_created ? "True" : "False");
             printf("[DEBUG] Bytes out: ");
-            print_byte_array(bytes_out, buffer_size);
+            // print_byte_array(bytes_out, buffer_size);
+            print_byte_array(bytes_out, sizeof msg);
         }
         else
         {
@@ -197,7 +236,7 @@ int main(int argc, char **argv)
     }
 
     // Exit program
-    printf("[INFO] Function \"%s\" in \"%s\" is finished\n", __FUNCTION__, __FILE__);
+    printf("\n[INFO] Function \"%s\" in \"%s\" is finished\n", __FUNCTION__, __FILE__);
     exit(exit_code);
 }
 
@@ -212,7 +251,7 @@ int print_byte_array(uint8_t *array, int array_len)
 {
     for (int i = 0; i < array_len; i++)
     {
-        printf("%x", array[i]);
+        printf("%02x", array[i]);
     }
     printf("\n");
     return 0;
