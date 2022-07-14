@@ -36,8 +36,13 @@
  * "quic-iv" : "d448041afa37c0322fe18eee",
  * "quic-plaintext-payload" : "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
  */
-uint8_t msg[] = "\x6d\xf3\xde\xc1\xbb\x98\xd9\x2f\x74\x02\xe8\x98\xce\xc8\x79\x54\x2c\xbd\x28\x23\x4c\x76\xb8\x64\x5e\xe1\xee\xe1\xc3\x7d\xb9\xc7\x79\x11\x2a\xe8\xbb\x5a\xfa\xaa\x6c\xbb\x71\xd3\xf0\xcd\x29\xbe\x3a\xb0\x40\x14\x65\x86\x30\xe8\xc0\x2b\xfc\x75\xb5\xe3\x22\xc2\xa4\x59\x32\x17\x02\xc2\x98\x52\x07\x94\x3d\x2b\x4b\xef\xbf\x29\x78\x7f\x2d\xdd\x2b\x74\x9d";
-size_t msg_len = sizeof(msg) - 1; // remove the null terminator
+const uint8_t msg[] = "\x6d\xf3\xde\xc1\xbb\x98\xd9\x2f\x74\x02\xe8\x98\xce\xc8\x79\x54\x2c\xbd\x28\x23\x4c\x76\xb8\x64\x5e\xe1\xee\xe1\xc3\x7d\xb9\xc7\x79\x11\x2a\xe8\xbb\x5a\xfa\xaa\x6c\xbb\x71\xd3\xf0\xcd\x29\xbe\x3a\xb0\x40\x14\x65\x86\x30\xe8\xc0\x2b\xfc\x75\xb5\xe3\x22\xc2\xa4\x59\x32\x17\x02\xc2\x98\x52\x07\x94\x3d\x2b\x4b\xef\xbf\x29\x78\x7f\x2d\xdd\x2b\x74\x9d";
+size_t msg_len = sizeof(msg) - 1; // Do not count string terminator
+const uint8_t dcid_id[] = "\xf3\xde\xc1\xbb\x98\xd9\x2f\x74\x02\xe8\x98\xce\xc8\x79\x54\x2c\xbd\x28\x23\x4c";
+size_t dcid_len = sizeof(dcid_id) - 1; // Do not count string terminator
+const uint8_t hp[] = "\xac\xfa\x8b\xcf\x0b\x47\x70\x16\xce\x23\xe7\x5d\x5d\xb6\x18\x2f";
+const uint8_t pp[] = "\xe8\x0a\xfd\xae\x24\xbe\xb1\x76\x40\x18\xf1\x8e\x09\x4a\x93\xed";
+const uint8_t iv[] = "\xd4\x48\x04\x1a\xfa\x37\xc0\x32\x2f\xe1\x8e\xee";
 
 // global pointers to input and output buffer
 int buffer_size = PICOQUIC_MAX_PACKET_SIZE;
@@ -46,6 +51,7 @@ uint8_t *bytes_out;
 
 int main(int argc, char **argv)
 {
+    printf("[INFO] Function \"%s\" in \"%s\" has started\n", __FUNCTION__, __FILE__);
     // Set initial exit code to success
     int exit_code = 0;
 
@@ -62,8 +68,6 @@ int main(int argc, char **argv)
     /*****************************************************
      *              Create picoquic context              *
      *****************************************************/
-    printf("\n[INFO] Create picoquic context:\n");
-    printf("------- -------------------------\n");
     picoquic_quic_t *quic = picoquic_create( // Source: https://github.com/private-octopus/picoquic/blob/28b313c1ee483bfae784d33593d1e56a32701cc4/picoquictest/parseheadertest.c#L568
         8,                                   // uint32_t max_nb_connections
         NULL,                                // char const* cert_file_name,
@@ -81,6 +85,7 @@ int main(int argc, char **argv)
         NULL,                                // const uint8_t* ticket_encryption_key
         0                                    // size_t ticket_encryption_key_length
     );
+    printf("[INFO] Picoquic context created\n");
 
     if (quic != NULL)
     {
@@ -113,34 +118,24 @@ int main(int argc, char **argv)
             NULL,                        // char const* alpn
             0                            // char client_mode
         );
-        printf("\n[INFO] Connection was created\n");
+        printf("[INFO] Connection created\n");
 
         // Create dcid and add to connection
-        const uint8_t dcid_id[] = "\xf3\xde\xc1\xbb\x98\xd9\x2f\x74\x02\xe8\x98\xce\xc8\x79\x54\x2c\xbd\x28\x23\x4c"; // Fixme: Use fixed dcid for debug, should be read from dcid file in final test
         picoquic_connection_id_t dcid = *((picoquic_connection_id_t *)(malloc(sizeof(picoquic_connection_id_t))));
-        dcid.id_len = sizeof dcid_id - 1; // Subtract string terminator
+        dcid.id_len = dcid_len;
         for (int i = 0; i < dcid.id_len; i++)
-        {
             dcid.id[i] = dcid_id[i]; // Copy values since pointer ref may cause problems later
-        }
         connection->path[0]->p_local_cnxid = picoquic_create_local_cnxid(connection, &dcid, 0);
-        printf("\n[INFO] DCID was added\n");
+        printf("[INFO] DCID added\n");
 
         // Fixme: Proof that connection is added to context is only for debug
-        printf("[DEBUG] First path of first conn in quic context: \n");
-        printf(" \t  Local CID: ");
-        print_byte_array(quic->cnx_list[0].path[0]->p_local_cnxid->cnx_id.id, quic->cnx_list[0].path[0]->p_local_cnxid->cnx_id.id_len);
+        // printf("[DEBUG] First path of first conn in quic context: \n");
+        // printf(" \t  Local CID: ");
+        // print_byte_array(quic->cnx_list[0].path[0]->p_local_cnxid->cnx_id.id, quic->cnx_list[0].path[0]->p_local_cnxid->cnx_id.id_len);
 
         // Create and fill connection's crypto context
-        const uint8_t hp[] = "\xac\xfa\x8b\xcf\x0b\x47\x70\x16\xce\x23\xe7\x5d\x5d\xb6\x18\x2f";
-        const uint8_t pp[] = "\xe8\x0a\xfd\xae\x24\xbe\xb1\x76\x40\x18\xf1\x8e\x09\x4a\x93\xed";
-        const uint8_t iv[] = "\xd4\x48\x04\x1a\xfa\x37\xc0\x32\x2f\xe1\x8e\xee";
         // Define algorithms
-        // Source: https://github.com/h2o/picotls/blob/57d4ec5faac383bc8480746b9851cd115a4d93f7/lib/openssl.c#L1584
-        // ptls_cipher_algorithm_t *hp_algo = &ptls_openssl_aes128ecb; // BUG: Setting the algorithm manually causes error
-        // Source: https://github.com/h2o/picotls/blob/57d4ec5faac383bc8480746b9851cd115a4d93f7/lib/openssl.c#L1589
-        // ptls_aead_algorithm_t *pp_algo = &ptls_openssl_aes128gcm; // BUG: Setting the algorithm manually causes error
-        ptls_cipher_suite_t *cipher = picoquic_get_aes128gcm_sha256_v(1);
+        ptls_cipher_suite_t *cipher = picoquic_get_aes128gcm_sha256_v(1); // Source: https://github.com/private-octopus/picoquic/blob/28b313c1ee483bfae784d33593d1e56a32701cc4/picoquic/tls_api.c#L2427
         ptls_cipher_algorithm_t *hp_algo = cipher->aead->ctr_cipher;
         ptls_aead_algorithm_t *pp_algo = cipher->aead;
         // Copy keys to heap
@@ -148,23 +143,19 @@ int main(int argc, char **argv)
         const void *pp_h = malloc(pp_algo->key_size);
         const void *iv_h = malloc(pp_algo->iv_size);
         for (int i = 0; i < hp_algo->key_size; i++)
-        {
             ((uint8_t *)hp_h)[i] = hp[i];
-        }
         for (int i = 0; i < pp_algo->key_size; i++)
-        {
             ((uint8_t *)pp_h)[i] = pp[i];
-        }
         for (int i = 0; i < pp_algo->iv_size; i++)
-        {
             ((uint8_t *)iv_h)[i] = iv[i];
-        }
-        // Create and set contexts
+        // Create contexts
         ptls_cipher_context_t *pn_context = ptls_cipher_new(hp_algo, 1, hp_h);            // Source: https://github.com/h2o/picotls/blob/57d4ec5faac383bc8480746b9851cd115a4d93f7/lib/picotls.c#L5230
         ptls_aead_context_t *aead_context = ptls_aead_new_direct(pp_algo, 0, pp_h, iv_h); // Source: https://github.com/h2o/picotls/blob/57d4ec5faac383bc8480746b9851cd115a4d93f7/lib/picotls.c#L5275
+        // Add contexts to connection
         // Source: https://github.com/private-octopus/picoquic/blob/28b313c1ee483bfae784d33593d1e56a32701cc4/picoquictest/parseheadertest.c#L842
         connection->crypto_context[3].pn_dec = pn_context;
         connection->crypto_context[3].aead_decrypt = aead_context;
+        printf("[INFO] Crypto context added\n");
 
         // Create parameters for `picoquic_parse_header_and_decrypt`
         decrypted_data = picoquic_stream_data_node_alloc(quic);
@@ -249,6 +240,7 @@ int main(int argc, char **argv)
     }
 
     // Cleanup
+    printf("\n[INFO] Cleanup\n");
     free(bytes_in);
     if (decrypted_data != NULL)
     {
@@ -260,7 +252,7 @@ int main(int argc, char **argv)
     }
 
     // Exit program
-    printf("\n[INFO] Function \"%s\" in \"%s\" is finished\n", __FUNCTION__, __FILE__);
+    printf("[INFO] Function \"%s\" in \"%s\" is finished\n", __FUNCTION__, __FILE__);
     exit(exit_code);
 }
 
