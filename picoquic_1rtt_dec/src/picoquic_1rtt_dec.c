@@ -35,6 +35,7 @@
  * "quic-plaintext-payload" : "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
  */
 uint8_t msg[] = "\x6d\xf3\xde\xc1\xbb\x98\xd9\x2f\x74\x02\xe8\x98\xce\xc8\x79\x54\x2c\xbd\x28\x23\x4c\x76\xb8\x64\x5e\xe1\xee\xe1\xc3\x7d\xb9\xc7\x79\x11\x2a\xe8\xbb\x5a\xfa\xaa\x6c\xbb\x71\xd3\xf0\xcd\x29\xbe\x3a\xb0\x40\x14\x65\x86\x30\xe8\xc0\x2b\xfc\x75\xb5\xe3\x22\xc2\xa4\x59\x32\x17\x02\xc2\x98\x52\x07\x94\x3d\x2b\x4b\xef\xbf\x29\x78\x7f\x2d\xdd\x2b\x74\x9d";
+size_t msg_len = sizeof(msg) - 1; // remove the null terminator
 
 // global pointers to input and output buffer
 int buffer_size = PICOQUIC_MAX_PACKET_SIZE;
@@ -54,7 +55,7 @@ int main(int argc, char **argv)
     memset(bytes_in, 0, buffer_size);
 
     // Read data input file to buffer
-    memcpy(bytes_in, &msg, sizeof msg); // Fixme: Set fixed msg to input buffer for debug, should be read from file for final test
+    memcpy(bytes_in, &msg, msg_len); // Fixme: Set fixed msg to input buffer for debug, should be read from file for final test
 
     /*****************************************************
      *              Create picoquic context              *
@@ -146,7 +147,7 @@ int main(int argc, char **argv)
         decrypted_data = picoquic_stream_data_node_alloc(quic);
         if (decrypted_data != NULL)
         {
-            int length = sizeof msg;    // Fixme: Set length to msg len for debug, should be set to len of nth packet for final test
+            int length = msg_len;       // Fixme: Set length to msg len for debug, should be set to len of nth packet for final test
             int packet_length = length; // Parse one packet at a time
             // Source: https://github.com/private-octopus/picoquic/blob/28b313c1ee483bfae784d33593d1e56a32701cc4/picoquic/packet.c#L2135
             picoquic_packet_header ph;
@@ -160,7 +161,7 @@ int main(int argc, char **argv)
             printf("------ ------------------------------------------\n");
             printf("[DEBUG] Bytes in: ");
             // print_byte_array(bytes_in, buffer_size);
-            print_byte_array(bytes_in, sizeof msg);
+            print_byte_array(bytes_in, msg_len);
             printf("[DEBUG] Length: %d (in)\n", length);
             printf("[DEBUG] Packet length: %d (in)\n", packet_length);
             int result = picoquic_parse_header_and_decrypt(
@@ -212,7 +213,7 @@ int main(int argc, char **argv)
             printf("[DEBUG] New context created: %s (out)\n", new_context_created ? "True" : "False");
             printf("[DEBUG] Bytes out: ");
             // print_byte_array(bytes_out, buffer_size);
-            print_byte_array(bytes_out, sizeof msg);
+            print_byte_array(bytes_out, msg_len);
         }
         else
         {
