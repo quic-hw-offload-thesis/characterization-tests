@@ -62,6 +62,8 @@ int main(int argc, char **argv)
     /*****************************************************
      *              Create picoquic context              *
      *****************************************************/
+    printf("\n[INFO] Create picoquic context:\n");
+    printf("------- -------------------------\n");
     picoquic_quic_t *quic = picoquic_create( // Source: https://github.com/private-octopus/picoquic/blob/28b313c1ee483bfae784d33593d1e56a32701cc4/picoquictest/parseheadertest.c#L568
         8,                                   // uint32_t max_nb_connections
         NULL,                                // char const* cert_file_name,
@@ -130,20 +132,18 @@ int main(int argc, char **argv)
         print_byte_array(quic->cnx_list[0].path[0]->p_local_cnxid->cnx_id.id, quic->cnx_list[0].path[0]->p_local_cnxid->cnx_id.id_len);
 
         // Create and fill connection's crypto context
-        // const uint8_t hp[] = {0xac, 0xfa, 0x8b, 0xcf, 0x0b, 0x47, 0x70, 0x16, 0xce, 0x23, 0xe7, 0x5d, 0x5d, 0xb6, 0x18, 0x2f};
         const uint8_t hp[] = "\xac\xfa\x8b\xcf\x0b\x47\x70\x16\xce\x23\xe7\x5d\x5d\xb6\x18\x2f";
-        // const uint8_t pp[] = {0xe8, 0x0a, 0xfd, 0xae, 0x24, 0xbe, 0xb1, 0x76, 0x40, 0x18, 0xf1, 0x8e, 0x09, 0x4a, 0x93, 0xed};
         const uint8_t pp[] = "\xe8\x0a\xfd\xae\x24\xbe\xb1\x76\x40\x18\xf1\x8e\x09\x4a\x93\xed";
-        // const uint8_t iv[] = {0xd4, 0x48, 0x04, 0x1a, 0xfa, 0x37, 0xc0, 0x32, 0x2f, 0xe1, 0x8e, 0xee};
         const uint8_t iv[] = "\xd4\x48\x04\x1a\xfa\x37\xc0\x32\x2f\xe1\x8e\xee";
         // Define algorithms
-        // ptls_cipher_algorithm_t *hp_algo = &ptls_openssl_aes128ecb; // Source: https://github.com/h2o/picotls/blob/57d4ec5faac383bc8480746b9851cd115a4d93f7/lib/openssl.c#L1584
-        // ptls_aead_algorithm_t *pp_algo = &ptls_openssl_aes128gcm;   // Source: https://github.com/h2o/picotls/blob/57d4ec5faac383bc8480746b9851cd115a4d93f7/lib/openssl.c#L1589
+        // Source: https://github.com/h2o/picotls/blob/57d4ec5faac383bc8480746b9851cd115a4d93f7/lib/openssl.c#L1584
+        // ptls_cipher_algorithm_t *hp_algo = &ptls_openssl_aes128ecb; // BUG: Setting the algorithm manually causes error
+        // Source: https://github.com/h2o/picotls/blob/57d4ec5faac383bc8480746b9851cd115a4d93f7/lib/openssl.c#L1589
+        // ptls_aead_algorithm_t *pp_algo = &ptls_openssl_aes128gcm; // BUG: Setting the algorithm manually causes error
         ptls_cipher_suite_t *cipher = picoquic_get_aes128gcm_sha256_v(1);
+        ptls_cipher_algorithm_t *hp_algo = cipher->aead->ctr_cipher;
+        ptls_aead_algorithm_t *pp_algo = cipher->aead;
         // Copy keys to heap
-        printf("[DEBUG] HP size= %d\n", hp_algo->key_size);
-        printf("[DEBUG] PP size= %d\n", pp_algo->key_size);
-        printf("[DEBUG] IV size= %d\n", pp_algo->iv_size);
         const void *hp_h = malloc(hp_algo->key_size);
         const void *pp_h = malloc(pp_algo->key_size);
         const void *iv_h = malloc(pp_algo->iv_size);
@@ -159,13 +159,12 @@ int main(int argc, char **argv)
         {
             ((uint8_t *)iv_h)[i] = iv[i];
         }
-
-        ptls_cipher_context_t *pn_context = ptls_cipher_new(cipher->aead->ctr_cipher, 1, hp_h); // Source: https://github.com/h2o/picotls/blob/57d4ec5faac383bc8480746b9851cd115a4d93f7/lib/picotls.c#L5230
-        ptls_aead_context_t *aead_context = ptls_aead_new_direct(cipher->aead, 0, pp_h, iv_h);  // Source: https://github.com/h2o/picotls/blob/57d4ec5faac383bc8480746b9851cd115a4d93f7/lib/picotls.c#L5275
-
+        // Create and set contexts
+        ptls_cipher_context_t *pn_context = ptls_cipher_new(hp_algo, 1, hp_h);            // Source: https://github.com/h2o/picotls/blob/57d4ec5faac383bc8480746b9851cd115a4d93f7/lib/picotls.c#L5230
+        ptls_aead_context_t *aead_context = ptls_aead_new_direct(pp_algo, 0, pp_h, iv_h); // Source: https://github.com/h2o/picotls/blob/57d4ec5faac383bc8480746b9851cd115a4d93f7/lib/picotls.c#L5275
         // Source: https://github.com/private-octopus/picoquic/blob/28b313c1ee483bfae784d33593d1e56a32701cc4/picoquictest/parseheadertest.c#L842
-        connection->crypto_context[3].aead_decrypt = aead_context;
         connection->crypto_context[3].pn_dec = pn_context;
+        connection->crypto_context[3].aead_decrypt = aead_context;
 
         // Create parameters for `picoquic_parse_header_and_decrypt`
         decrypted_data = picoquic_stream_data_node_alloc(quic);
