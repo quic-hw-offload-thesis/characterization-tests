@@ -176,8 +176,9 @@ int main(int argc, char **argv)
             printf("[DEBUG] Bytes in: ");
             // print_byte_array(bytes_in, buffer_size);
             print_byte_array(bytes_in, msg_len);
-            printf("[DEBUG] Length: %d (in)\n", length);
-            printf("[DEBUG] Packet length: %d (in)\n", packet_length);
+            // printf("[DEBUG] Length: %d (in)\n", length);
+            // printf("[DEBUG] Packet length: %d (in)\n", packet_length);
+            clock_t t_s = clock(); // Note: Start timer here
             int result = picoquic_parse_header_and_decrypt(
                 quic,                // quic: Picoquic context
                 bytes_in,            // bytes: Input bytes
@@ -192,39 +193,42 @@ int main(int argc, char **argv)
                 &new_context_created // new_context_created: 0 if there isn't a new context created?
             );
             bytes_out = decrypted_data->data; // Fixme: Set pointer for debug, should append for final test
-            printf("[DEBUG] Result: %d (returned)\n", result);
+            clock_t t_e = clock();            // Note: Stop timer here
+            double dt = (double)(t_e - t_s) * 1000.0 / CLOCKS_PER_SEC;
+            printf("[INFO] Parse header and decrypt took %f ms\n", dt);
+            // printf("[DEBUG] Result: %d (returned)\n", result);
 
-            // Print statements for debug
-            printf("[DEBUG] Packet header: (out)\n");
-            char *ptype = NULL;
-            ptype_to_string(ph.ptype, &ptype);
-            printf("\t  Type: %s\n", ptype);
-            printf("\t  DCID: ");
-            print_byte_array(ph.dest_cnx_id.id, ph.dest_cnx_id.id_len);
-            printf("\t  SCID: ");
-            print_byte_array(ph.srce_cnx_id.id, ph.srce_cnx_id.id_len);
-            printf("\t  Key phase: %d\n", ph.key_phase);
-            printf("\t  Spin bit: %d\n", ph.spin);
-            printf("\t  Packet number: %d\n", ph.pn);
-            printf("\t  Packet number offset: %d\n", ph.pn_offset);
-            printf("\t  Payload offset: %d\n", ph.offset);
-            printf("\t  Payload length: %d\n", ph.payload_length);
+            // // Print statements for debug
+            // printf("[DEBUG] Packet header: (out)\n");
+            // char *ptype = NULL;
+            // ptype_to_string(ph.ptype, &ptype);
+            // printf("\t  Type: %s\n", ptype);
+            // printf("\t  DCID: ");
+            // print_byte_array(ph.dest_cnx_id.id, ph.dest_cnx_id.id_len);
+            // printf("\t  SCID: ");
+            // print_byte_array(ph.srce_cnx_id.id, ph.srce_cnx_id.id_len);
+            // printf("\t  Key phase: %d\n", ph.key_phase);
+            // printf("\t  Spin bit: %d\n", ph.spin);
+            // printf("\t  Packet number: %d\n", ph.pn);
+            // printf("\t  Packet number offset: %d\n", ph.pn_offset);
+            // printf("\t  Payload offset: %d\n", ph.offset);
+            // printf("\t  Payload length: %d\n", ph.payload_length);
 
-            if (cnx != NULL)
-            {
-                printf("[DEBUG] Connection: (out)\n");
-                printf("\t  Spin bit (enc): %d\n", cnx->key_phase_enc);
-                printf("\t  Spin bit (dec): %d\n", cnx->key_phase_dec);
-                printf("\t  Local CID: ");
-                print_byte_array(cnx->path[0]->p_local_cnxid->cnx_id.id, cnx->path[0]->p_local_cnxid->cnx_id.id_len);
-            }
-            else
-            {
-                printf("[ERROR] Connection: NULL (out)\n");
-            }
+            // if (cnx != NULL)
+            // {
+            //     printf("[DEBUG] Connection: (out)\n");
+            //     printf("\t  Spin bit (enc): %d\n", cnx->key_phase_enc);
+            //     printf("\t  Spin bit (dec): %d\n", cnx->key_phase_dec);
+            //     printf("\t  Local CID: ");
+            //     print_byte_array(cnx->path[0]->p_local_cnxid->cnx_id.id, cnx->path[0]->p_local_cnxid->cnx_id.id_len);
+            // }
+            // else
+            // {
+            //     printf("[ERROR] Connection: NULL (out)\n");
+            // }
 
-            printf("[DEBUG] Consumed: %d (out)\n", consumed);
-            printf("[DEBUG] New context created: %s (out)\n", new_context_created ? "True" : "False");
+            // printf("[DEBUG] Consumed: %d (out)\n", consumed);
+            // printf("[DEBUG] New context created: %s (out)\n", new_context_created ? "True" : "False");
             printf("[DEBUG] Bytes out: ");
             // print_byte_array(bytes_out, buffer_size);
             print_byte_array(bytes_out, msg_len);
