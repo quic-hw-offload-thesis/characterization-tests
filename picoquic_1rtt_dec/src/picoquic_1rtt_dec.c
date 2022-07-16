@@ -19,6 +19,8 @@
 #include "../../libs/picoquic/picoquic/picoquic_internal.h"
 #include "../../libs/picoquic/picoquic/picoquic_utils.h"
 #include "../../libs/picoquic/picoquic/tls_api.h"
+#include "../../libs/picotls/include/picotls.h"
+#include "../../libs/picotls/include/picotls/openssl.h"
 
 #include "picoquic_1rtt_dec.h"
 
@@ -34,8 +36,13 @@
  * "quic-iv" : "d448041afa37c0322fe18eee",
  * "quic-plaintext-payload" : "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
  */
-uint8_t msg[] = "\x6d\xf3\xde\xc1\xbb\x98\xd9\x2f\x74\x02\xe8\x98\xce\xc8\x79\x54\x2c\xbd\x28\x23\x4c\x76\xb8\x64\x5e\xe1\xee\xe1\xc3\x7d\xb9\xc7\x79\x11\x2a\xe8\xbb\x5a\xfa\xaa\x6c\xbb\x71\xd3\xf0\xcd\x29\xbe\x3a\xb0\x40\x14\x65\x86\x30\xe8\xc0\x2b\xfc\x75\xb5\xe3\x22\xc2\xa4\x59\x32\x17\x02\xc2\x98\x52\x07\x94\x3d\x2b\x4b\xef\xbf\x29\x78\x7f\x2d\xdd\x2b\x74\x9d";
-size_t msg_len = sizeof(msg) - 1; // remove the null terminator
+const uint8_t msg[] = "\x6d\xf3\xde\xc1\xbb\x98\xd9\x2f\x74\x02\xe8\x98\xce\xc8\x79\x54\x2c\xbd\x28\x23\x4c\x76\xb8\x64\x5e\xe1\xee\xe1\xc3\x7d\xb9\xc7\x79\x11\x2a\xe8\xbb\x5a\xfa\xaa\x6c\xbb\x71\xd3\xf0\xcd\x29\xbe\x3a\xb0\x40\x14\x65\x86\x30\xe8\xc0\x2b\xfc\x75\xb5\xe3\x22\xc2\xa4\x59\x32\x17\x02\xc2\x98\x52\x07\x94\x3d\x2b\x4b\xef\xbf\x29\x78\x7f\x2d\xdd\x2b\x74\x9d";
+size_t msg_len = sizeof(msg) - 1; // Do not count string terminator
+const uint8_t dcid_id[] = "\xf3\xde\xc1\xbb\x98\xd9\x2f\x74\x02\xe8\x98\xce\xc8\x79\x54\x2c\xbd\x28\x23\x4c";
+size_t dcid_len = sizeof(dcid_id) - 1; // Do not count string terminator
+const uint8_t hp[] = "\xac\xfa\x8b\xcf\x0b\x47\x70\x16\xce\x23\xe7\x5d\x5d\xb6\x18\x2f";
+const uint8_t pp[] = "\xe8\x0a\xfd\xae\x24\xbe\xb1\x76\x40\x18\xf1\x8e\x09\x4a\x93\xed";
+const uint8_t iv[] = "\xd4\x48\x04\x1a\xfa\x37\xc0\x32\x2f\xe1\x8e\xee";
 
 // global pointers to input and output buffer
 int buffer_size = PICOQUIC_MAX_PACKET_SIZE;
@@ -44,6 +51,7 @@ uint8_t *bytes_out;
 
 int main(int argc, char **argv)
 {
+    printf("[INFO] Function \"%s\" in \"%s\" has started\n", __FUNCTION__, __FILE__);
     // Set initial exit code to success
     int exit_code = 0;
 
@@ -77,6 +85,7 @@ int main(int argc, char **argv)
         NULL,                                // const uint8_t* ticket_encryption_key
         0                                    // size_t ticket_encryption_key_length
     );
+    printf("[INFO] Picoquic context created\n");
 
     if (quic != NULL)
     {
@@ -86,7 +95,7 @@ int main(int argc, char **argv)
         /*****************************************************
          *            Create picoquic connection             *
          *****************************************************/
-        printf("\n[DEBUG] Create picoquic connection:\n");
+        printf("\n[INFO] Create picoquic connection:\n");
         printf("------- ---------------------------\n");
 
         // Create socket address for this connection
@@ -109,39 +118,44 @@ int main(int argc, char **argv)
             NULL,                        // char const* alpn
             0                            // char client_mode
         );
+        printf("[INFO] Connection created\n");
 
         // Create dcid and add to connection
-        uint8_t dcid_id[] = "\xf3\xde\xc1\xbb\x98\xd9\x2f\x74\x02\xe8\x98\xce\xc8\x79\x54\x2c\xbd\x28\x23\x4c"; // Fixme: Use fixed dcid for debug, should be read from dcid file in final test
         picoquic_connection_id_t dcid = *((picoquic_connection_id_t *)(malloc(sizeof(picoquic_connection_id_t))));
-        dcid.id_len = sizeof dcid_id - 1; // Subtract string terminator
+        dcid.id_len = dcid_len;
         for (int i = 0; i < dcid.id_len; i++)
-        {
             dcid.id[i] = dcid_id[i]; // Copy values since pointer ref may cause problems later
-        }
         connection->path[0]->p_local_cnxid = picoquic_create_local_cnxid(connection, &dcid, 0);
-
-        // Create and fill connection's crypto context
-        // Source: https://github.com/private-octopus/picoquic/blob/28b313c1ee483bfae784d33593d1e56a32701cc4/picoquictest/parseheadertest.c#L842
-        char *prefix_label = picoquic_supported_versions[connection->version_index].tls_prefix_label;
-        static const uint8_t secret[] = {
-            0, 1,
-            0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-            0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-            0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-        void *aead_context = picoquic_setup_test_aead_context(0, secret, prefix_label);
-        void *pn_context = picoquic_pn_enc_create_for_test(secret, prefix_label);
-        connection->crypto_context[3].aead_decrypt = aead_context;
-        connection->crypto_context[3].pn_dec = pn_context;
-        printf("[DEBUG] Crypto context setup: \n");
-        printf("\t  Version index: %d\n", connection->version_index);
-        printf("\t  Prefix label: %d\n", *prefix_label);
+        printf("[INFO] DCID added\n");
 
         // Fixme: Proof that connection is added to context is only for debug
-        printf("[DEBUG] First path of first conn in quic context: \n");
-        printf(" \t  Local CID: ");
-        print_byte_array(quic->cnx_list[0].path[0]->p_local_cnxid->cnx_id.id, quic->cnx_list[0].path[0]->p_local_cnxid->cnx_id.id_len);
-        printf("\t  Remote CID: ");
-        print_byte_array(quic->cnx_list[0].path[0]->p_remote_cnxid->cnx_id.id, quic->cnx_list[0].path[0]->p_remote_cnxid->cnx_id.id_len);
+        // printf("[DEBUG] First path of first conn in quic context: \n");
+        // printf(" \t  Local CID: ");
+        // print_byte_array(quic->cnx_list[0].path[0]->p_local_cnxid->cnx_id.id, quic->cnx_list[0].path[0]->p_local_cnxid->cnx_id.id_len);
+
+        // Create and fill connection's crypto context
+        // Define algorithms
+        ptls_cipher_suite_t *cipher = picoquic_get_aes128gcm_sha256_v(1); // Source: https://github.com/private-octopus/picoquic/blob/28b313c1ee483bfae784d33593d1e56a32701cc4/picoquic/tls_api.c#L2427
+        ptls_cipher_algorithm_t *hp_algo = cipher->aead->ctr_cipher;
+        ptls_aead_algorithm_t *pp_algo = cipher->aead;
+        // Copy keys to heap
+        const void *hp_h = malloc(hp_algo->key_size);
+        const void *pp_h = malloc(pp_algo->key_size);
+        const void *iv_h = malloc(pp_algo->iv_size);
+        for (int i = 0; i < hp_algo->key_size; i++)
+            ((uint8_t *)hp_h)[i] = hp[i];
+        for (int i = 0; i < pp_algo->key_size; i++)
+            ((uint8_t *)pp_h)[i] = pp[i];
+        for (int i = 0; i < pp_algo->iv_size; i++)
+            ((uint8_t *)iv_h)[i] = iv[i];
+        // Create contexts
+        ptls_cipher_context_t *pn_context = ptls_cipher_new(hp_algo, 1, hp_h);            // Source: https://github.com/h2o/picotls/blob/57d4ec5faac383bc8480746b9851cd115a4d93f7/lib/picotls.c#L5230
+        ptls_aead_context_t *aead_context = ptls_aead_new_direct(pp_algo, 0, pp_h, iv_h); // Source: https://github.com/h2o/picotls/blob/57d4ec5faac383bc8480746b9851cd115a4d93f7/lib/picotls.c#L5275
+        // Add contexts to connection
+        // Source: https://github.com/private-octopus/picoquic/blob/28b313c1ee483bfae784d33593d1e56a32701cc4/picoquictest/parseheadertest.c#L842
+        connection->crypto_context[3].pn_dec = pn_context;
+        connection->crypto_context[3].aead_decrypt = aead_context;
+        printf("[INFO] Crypto context added\n");
 
         // Create parameters for `picoquic_parse_header_and_decrypt`
         decrypted_data = picoquic_stream_data_node_alloc(quic);
@@ -157,13 +171,14 @@ int main(int argc, char **argv)
             uint64_t current_time = picoquic_current_time(); // Current time is calculated as last before function call
 
             //  Parse & decrypt bytes_in into bytes_out
-            printf("\n[INFO] Calling picoquic_parse_header_and_decrypt:\n");
+            printf("\n[INFO] Parse header and decrypt:\n");
             printf("------ ------------------------------------------\n");
             printf("[DEBUG] Bytes in: ");
             // print_byte_array(bytes_in, buffer_size);
             print_byte_array(bytes_in, msg_len);
-            printf("[DEBUG] Length: %d (in)\n", length);
-            printf("[DEBUG] Packet length: %d (in)\n", packet_length);
+            // printf("[DEBUG] Length: %d (in)\n", length);
+            // printf("[DEBUG] Packet length: %d (in)\n", packet_length);
+            clock_t t_s = clock(); // Note: Start timer here
             int result = picoquic_parse_header_and_decrypt(
                 quic,                // quic: Picoquic context
                 bytes_in,            // bytes: Input bytes
@@ -178,39 +193,42 @@ int main(int argc, char **argv)
                 &new_context_created // new_context_created: 0 if there isn't a new context created?
             );
             bytes_out = decrypted_data->data; // Fixme: Set pointer for debug, should append for final test
-            printf("[DEBUG] Result: %d (returned)\n", result);
+            clock_t t_e = clock();            // Note: Stop timer here
+            double dt = (double)(t_e - t_s) * 1000.0 / CLOCKS_PER_SEC;
+            printf("[INFO] Parse header and decrypt took %f ms\n", dt);
+            // printf("[DEBUG] Result: %d (returned)\n", result);
 
-            // Print statements for debug
-            printf("[DEBUG] Packet header: (out)\n");
-            char *ptype = NULL;
-            ptype_to_string(ph.ptype, &ptype);
-            printf("\t  Type: %s\n", ptype);
-            printf("\t  DCID: ");
-            print_byte_array(ph.dest_cnx_id.id, ph.dest_cnx_id.id_len);
-            printf("\t  SCID: ");
-            print_byte_array(ph.srce_cnx_id.id, ph.srce_cnx_id.id_len);
-            printf("\t  Key phase: %d\n", ph.key_phase);
-            printf("\t  Spin bit: %d\n", ph.spin);
-            printf("\t  Packet number: %d\n", ph.pn);
-            printf("\t  Packet number offset: %d\n", ph.pn_offset);
-            printf("\t  Payload offset: %d\n", ph.offset);
-            printf("\t  Payload length: %d\n", ph.payload_length);
+            // // Print statements for debug
+            // printf("[DEBUG] Packet header: (out)\n");
+            // char *ptype = NULL;
+            // ptype_to_string(ph.ptype, &ptype);
+            // printf("\t  Type: %s\n", ptype);
+            // printf("\t  DCID: ");
+            // print_byte_array(ph.dest_cnx_id.id, ph.dest_cnx_id.id_len);
+            // printf("\t  SCID: ");
+            // print_byte_array(ph.srce_cnx_id.id, ph.srce_cnx_id.id_len);
+            // printf("\t  Key phase: %d\n", ph.key_phase);
+            // printf("\t  Spin bit: %d\n", ph.spin);
+            // printf("\t  Packet number: %d\n", ph.pn);
+            // printf("\t  Packet number offset: %d\n", ph.pn_offset);
+            // printf("\t  Payload offset: %d\n", ph.offset);
+            // printf("\t  Payload length: %d\n", ph.payload_length);
 
-            if (cnx != NULL)
-            {
-                printf("[DEBUG] Connection: (out)\n");
-                printf("\t  Spin bit (enc): %d\n", cnx->key_phase_enc);
-                printf("\t  Spin bit (dec): %d\n", cnx->key_phase_dec);
-                printf("\t  Local CID: ");
-                print_byte_array(cnx->path[0]->p_local_cnxid->cnx_id.id, cnx->path[0]->p_local_cnxid->cnx_id.id_len);
-            }
-            else
-            {
-                printf("[ERROR] Connection: NULL (out)\n");
-            }
+            // if (cnx != NULL)
+            // {
+            //     printf("[DEBUG] Connection: (out)\n");
+            //     printf("\t  Spin bit (enc): %d\n", cnx->key_phase_enc);
+            //     printf("\t  Spin bit (dec): %d\n", cnx->key_phase_dec);
+            //     printf("\t  Local CID: ");
+            //     print_byte_array(cnx->path[0]->p_local_cnxid->cnx_id.id, cnx->path[0]->p_local_cnxid->cnx_id.id_len);
+            // }
+            // else
+            // {
+            //     printf("[ERROR] Connection: NULL (out)\n");
+            // }
 
-            printf("[DEBUG] Consumed: %d (out)\n", consumed);
-            printf("[DEBUG] New context created: %s (out)\n", new_context_created ? "True" : "False");
+            // printf("[DEBUG] Consumed: %d (out)\n", consumed);
+            // printf("[DEBUG] New context created: %s (out)\n", new_context_created ? "True" : "False");
             printf("[DEBUG] Bytes out: ");
             // print_byte_array(bytes_out, buffer_size);
             print_byte_array(bytes_out, msg_len);
@@ -226,6 +244,7 @@ int main(int argc, char **argv)
     }
 
     // Cleanup
+    printf("\n[INFO] Cleanup\n");
     free(bytes_in);
     if (decrypted_data != NULL)
     {
@@ -237,7 +256,7 @@ int main(int argc, char **argv)
     }
 
     // Exit program
-    printf("\n[INFO] Function \"%s\" in \"%s\" is finished\n", __FUNCTION__, __FILE__);
+    printf("[INFO] Function \"%s\" in \"%s\" is finished\n", __FUNCTION__, __FILE__);
     exit(exit_code);
 }
 

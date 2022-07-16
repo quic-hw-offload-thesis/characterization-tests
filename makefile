@@ -9,21 +9,35 @@
 # ------------------------------------------------------------------------------
 
 # Define directories with tests
-TEST_DIRS := ./picoquic_1rtt_dec ./soc_1rtt_dec
+TEST_DIRS := ./picoquic_1rtt_dec
+
+LIB_DIR := ./libs
 
 TARGET_DIR := ./target
 BINARIES := $(wildcard $(TARGET_DIR)/*)
 
 .PONY: all
 
-all: bin run
+all: bin clean run
 
 bin:
 	for dir in $(TEST_DIRS); \
 		do $(MAKE) -C $$dir bin; \
 	done
 
+clean:
+	for dir in $(TEST_DIRS); \
+		do $(MAKE) -C $$dir clean; \
+	done
+
 run: 
 	for bin in $(BINARIES); \
 		do $$bin; \
 	done
+
+lib:
+	$(MAKE) -C $(LIB_DIR)/picotls clean
+	$(MAKE) -C $(LIB_DIR)/picotls
+	$(MAKE) -C $(LIB_DIR)/picoquic  clean
+	$(MAKE) -C $(LIB_DIR)/picoquic
+
